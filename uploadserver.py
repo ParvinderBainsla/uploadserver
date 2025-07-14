@@ -1,12 +1,12 @@
 import os
 import platform
+import socket
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 from email.parser import BytesParser
 from email.policy import default
-import socket
 
-# 👇 Automatically set upload directory based on platform
+# 📁 Automatically choose upload directory
 if "Android" in platform.platform():
     UPLOAD_DIR = "/sdcard/Download/uploadserver"
 else:
@@ -14,6 +14,17 @@ else:
 
 PORT = 8090
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 🌐 Detect local IP address
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "127.0.0.1"
 
 class CustomHandler(BaseHTTPRequestHandler):
     def _send_html_response(self, content):
@@ -62,23 +73,20 @@ class CustomHandler(BaseHTTPRequestHandler):
                 headers, file_data = part.split(b"\r\n\r\n", 1)
                 headers = BytesParser(policy=default).parsebytes(headers + b"\r\n")
                 disposition = headers.get("Content-Disposition")
-
-                if disposition and disposition.params.get("filename"):
-                    filename = os.path.basename(disposition.params["filename"])
-                    filepath = os.path.join(UPLOAD_DIR, filename)
-                    with open(filepath, "wb") as f:
-                        f.write(file_data.strip(b"\r\n--"))
-                    self._send_html_response(f"<p>✅ File '{filename}' uploaded.</p><a href='/'>Go Back</a>")
-                    return
-                else:
-                    self.send_error(400, "Missing or invalid file upload field")
-                    return
+                if not disposition or not disposition.params.get("filename"):
+                    continue
+                filename = os.path.basename(disposition.params["filename"])
+                filepath = os.path.join(UPLOAD_DIR, filename)
+                with open(filepath, "wb") as f:
+                    f.write(file_data.strip(b"\r\n--"))
+                self._send_html_response(f"<p>✅ File '{filename}' uploaded.</p><a href='/'>Go Back</a>")
+                return
 
         self.send_error(400, "No valid file uploaded")
 
 if __name__ == "__main__":
+    local_ip = get_local_ip()
     print(f"📁 Uploads will be saved to: {UPLOAD_DIR}")
+    print(f"✅ Serving at http://{local_ip}:{PORT}")
     with HTTPServer(("", PORT), CustomHandler) as httpd:
-        ip = socket.gethostbyname(socket.gethostname())
-        print(f"✅ Serving at http://{ip}:{PORT}")
         httpd.serve_forever()
