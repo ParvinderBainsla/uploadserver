@@ -22,6 +22,20 @@ class CustomHandler(BaseHTTPRequestHandler):
         self.wfile.write(content.encode("utf-8"))
 
     def do_GET(self):
+        path = unquote(self.path.lstrip("/"))
+        if path:
+            filepath = os.path.join(UPLOAD_DIR, path)
+            if os.path.isfile(filepath):
+                self.send_response(200)
+                self.send_header("Content-type", "application/octet-stream")
+                self.end_headers()
+                with open(filepath, "rb") as f:
+                    self.wfile.write(f.read())
+                return
+            else:
+                self.send_error(404, "File not found")
+                return
+
         files = os.listdir(UPLOAD_DIR)
         body = "<h1>📁 Uploaded Files</h1><ul>"
         for file in files:
