@@ -1,30 +1,20 @@
 import os
 import platform
-import socket
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 from email.parser import BytesParser
 from email.policy import default
 
-# 📁 Automatically choose upload directory
+# 👇 Automatically set upload directory based on platform
 if "Android" in platform.platform():
     UPLOAD_DIR = "/sdcard/Download/uploadserver"
+    HOST = "10.91.255.48"  # Android local IP for network access
 else:
     UPLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads", "uploadserver")
+    HOST = "127.0.0.1"  # localhost for desktop
 
 PORT = 8090
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# 🌐 Detect local IP address
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except:
-        return "127.0.0.1"
 
 class CustomHandler(BaseHTTPRequestHandler):
     def _send_html_response(self, content):
@@ -85,8 +75,7 @@ class CustomHandler(BaseHTTPRequestHandler):
         self.send_error(400, "No valid file uploaded")
 
 if __name__ == "__main__":
-    local_ip = get_local_ip()
     print(f"📁 Uploads will be saved to: {UPLOAD_DIR}")
-    print(f"✅ Serving at http://{local_ip}:{PORT}")
-    with HTTPServer(("", PORT), CustomHandler) as httpd:
+    print(f"✅ Serving at http://{HOST}:{PORT}")
+    with HTTPServer((HOST, PORT), CustomHandler) as httpd:
         httpd.serve_forever()
