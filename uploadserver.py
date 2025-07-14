@@ -4,6 +4,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 from email.parser import BytesParser
 from email.policy import default
+import socket
 
 # 👇 Automatically set upload directory based on platform
 if "Android" in platform.platform():
@@ -61,18 +62,23 @@ class CustomHandler(BaseHTTPRequestHandler):
                 headers, file_data = part.split(b"\r\n\r\n", 1)
                 headers = BytesParser(policy=default).parsebytes(headers + b"\r\n")
                 disposition = headers.get("Content-Disposition")
-                filename = disposition.params["filename"]
-                filename = os.path.basename(filename)
-                filepath = os.path.join(UPLOAD_DIR, filename)
-                with open(filepath, "wb") as f:
-                    f.write(file_data.strip(b"\r\n--"))
-                self._send_html_response(f"<p>✅ File '{filename}' uploaded.</p><a href='/'>Go Back</a>")
-                return
+
+                if disposition and disposition.params.get("filename"):
+                    filename = os.path.basename(disposition.params["filename"])
+                    filepath = os.path.join(UPLOAD_DIR, filename)
+                    with open(filepath, "wb") as f:
+                        f.write(file_data.strip(b"\r\n--"))
+                    self._send_html_response(f"<p>✅ File '{filename}' uploaded.</p><a href='/'>Go Back</a>")
+                    return
+                else:
+                    self.send_error(400, "Missing or invalid file upload field")
+                    return
 
         self.send_error(400, "No valid file uploaded")
 
 if __name__ == "__main__":
     print(f"📁 Uploads will be saved to: {UPLOAD_DIR}")
     with HTTPServer(("", PORT), CustomHandler) as httpd:
-        print(f"✅ Serving at http://0.0.0.0:{PORT}")
+        ip = socket.gethostbyname(socket.gethostname())
+        print(f"✅ Serving at http://{ip}:{PORT}")
         httpd.serve_forever()
