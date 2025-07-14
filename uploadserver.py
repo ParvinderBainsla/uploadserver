@@ -1,7 +1,7 @@
 import os
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 
-PORT = 8080
+PORT = 8090
 UPLOAD_DIR = "/sdcard/Download"
 
 class CustomHandler(SimpleHTTPRequestHandler):
